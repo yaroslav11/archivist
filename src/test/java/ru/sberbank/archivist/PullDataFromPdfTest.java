@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class MainTest {
+public class PullDataFromPdfTest {
 
     private Reader reader = new PdfReader();
 
@@ -42,22 +42,15 @@ public class MainTest {
         String rawText = reader.getTextFromDocument(pdf);
         String cleanText = StringUtil.filterStoppingWords(rawText);
         List<String> words = StringUtil.getWordsFromText(cleanText);
-        Map<String, Integer> wordsWithFrequency = mapStringList(words);
+        Map<String, Integer> wordsWithFrequency = StringUtil.mapStringList(words);
         System.out.println(wordsWithFrequency
                 .entrySet()
                 .stream()
                 .sorted(Map.Entry.comparingByValue())
-                .skip(wordsWithFrequency.size() - 10)
+//                .skip(wordsWithFrequency.size() - 15)
                 .collect(Collectors.toList())
         );
     }
 
-    private static Map<String, Integer> mapStringList(List<String> src) {
-        Map<String, Integer> dst = new HashMap<>();
-        for (String key : src) {
-            dst.put(key, dst.containsKey(key) ? dst.get(key) + 1 : 1);
-        }
-        return dst;
-    }
 
 }
