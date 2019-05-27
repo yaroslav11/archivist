@@ -2,6 +2,7 @@ package ru.sberbank.archivist.roadmaps;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import ru.sberbank.archivist.persistense.BloomFilter;
+import ru.sberbank.archivist.persistense.Index;
 import ru.sberbank.archivist.reader.PdfReader;
 import ru.sberbank.archivist.reader.Reader;
 import ru.sberbank.archivist.util.KeyGenerator;
@@ -36,36 +37,47 @@ public class LoadDocument {
     private String privateKeySeed;
     private Set<String> allWordsSet;
     private List<String> vectorKey;
-    @Autowired
+
+//    @Autowired
+    public Index index;
     private BloomFilter bloomFilter;
 
-    public LoadDocument(String documentName) {
-        this.documentName = documentName;
+    @Autowired
+    public LoadDocument(Index index) {
+        this.index = index;
     }
 
-    public void act() {
+    public String act(String documentName) {
+        this.documentName = documentName;
+
         createDocumentUuid();
         createPrivateKeySeed();
         createAllWordsSet();
         createVectorKey();
-//        createBloomFilter();
+        createBloomFilter();
         for (String word: allWordsSet) {
             List<String> trapdoor1 = createTrapdoor1(word);
             List<String> trapdoor2 = createTrapdoor2(trapdoor1);
             updateBloomFilter(trapdoor2);
+            System.out.println(String.format("keyword for %s = %s", documentName, word));
+            break; // to act for single key word
         }
+        updateIndex();
+
+        return privateKeySeed;
     }
 
 
-    public void createDocumentUuid() {
-        documentUuid = UUID.randomUUID().toString().replaceAll("-", "");
+    private void createDocumentUuid() {
+//        documentUuid = UUID.randomUUID().toString().replaceAll("-", "");
+        documentUuid = documentName;
     }
 
-    public void createPrivateKeySeed() {
+    private void createPrivateKeySeed() {
         privateKeySeed = UUID.randomUUID().toString().replaceAll("-", "");
     }
 
-    public void createAllWordsSet() {
+    private void createAllWordsSet() {
         String rawText = reader.getTextFromDocument(documentName);
         String cleanText = StringUtil.filterStoppingWords(rawText);
         List<String> words = StringUtil.getWordsFromText(cleanText);
@@ -73,25 +85,29 @@ public class LoadDocument {
         allWordsSet = wordsWithFrequency.keySet();
     }
 
-    public void createVectorKey() {
+    private void createVectorKey() {
         vectorKey = KeyGenerator.generateVectorKey(privateKeySeed);
     }
 
-    public List<String> createTrapdoor1(String word) {
+    private List<String> createTrapdoor1(String word) {
         return PseudoRandomFunction.actAsPrf(vectorKey, word);
     }
 
-    public List<String> createTrapdoor2(List<String> trapdor1) {
+    private List<String> createTrapdoor2(List<String> trapdor1) {
         return PseudoRandomFunction.actAsPrf(trapdor1, documentUuid);
     }
 
-    public void createBloomFilter() {
+    private void createBloomFilter() {
         bloomFilter = new BloomFilter();
     }
 
-    public void updateBloomFilter(List<String> elementsToBeInsertedToBF) {
+    private void updateBloomFilter(List<String> elementsToBeInsertedToBF) {
         for (String element: elementsToBeInsertedToBF) {
             bloomFilter.put(element, true);
         }
+    }
+
+    private void updateIndex() {
+        index.put(documentUuid, bloomFilter);
     }
 }
